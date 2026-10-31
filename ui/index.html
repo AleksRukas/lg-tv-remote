@@ -444,7 +444,7 @@ async function loadApps() {
 
 function renderAppsGrid(apps, layout) {
   if (!apps) {
-    // Fallback: reload
+    // Need apps to render — reload from API
     loadApps();
     return;
   }
@@ -454,12 +454,13 @@ function renderAppsGrid(apps, layout) {
     const iconHtml = a.icon && a.icon.startsWith('http')
       ? `<img src="${a.icon}" style="width:28px;height:28px;border-radius:6px;object-fit:contain" loading="lazy">`
       : `<span class="app-icon">${a.name ? a.name[0].toUpperCase() : '?'}</span>`;
+    const name = a.name ? a.name.replace(/'/g, "\\'") : '?';
     const removeBtn = manageMode ? `<div class="remove-btn" style="display:flex" onclick="event.stopPropagation();removeApp('${a.id}')">×</div>` : '';
     const dragAttrs = manageMode ? `draggable="true" ondragstart="onDragStart(event,'${a.id}')" ondragover="onDragOver(event)" ondrop="onDrop(event,'${a.id}')" ondragend="onDragEnd(event)"` : '';
-    return `<button class="app-btn" style="background:${bgColor}" onclick="send('launch',{appId:'${a.id}'})" ${dragAttrs}>${removeBtn}${iconHtml}<span>${a.name}</span></button>`;
+    return `<button class="app-btn" style="background:${bgColor}" onclick="send('launch',{appId:'${a.id}'})" ${dragAttrs}>${removeBtn}${iconHtml}<span>${name}</span></button>`;
   }).join('');
 
-  // Setup drag styles
+  // Setup drag attributes on buttons
   if (manageMode) {
     grid.querySelectorAll('.app-btn').forEach(el => {
       el.setAttribute('draggable', 'true');
@@ -467,24 +468,132 @@ function renderAppsGrid(apps, layout) {
   }
 }
 
-// ── Drag & Drop ──
+// Keep a reference to the current apps array for remove/restore operations
+let currentApps = [];
+
+function refreshApps() {
+  const btn = document.getElementById('refreshAppsBtn');
+  const wasManage = manageMode;
+  if (wasManage) toggleManageMode(); // exit manage mode
+  btn.textContent = '⟳';
+  btn.disabled = true;
+  try {
+    const r = await fetch(`${API}/apps/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ip: tvIp })
+    });
+    const apps = await r.json();
+    if (!apps.length) {
+      currentApps = [];
+      document.getElementById('appsGrid').innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text2);font-size:0.8rem;padding:16px">No apps detected yet</div>';
+      return;
+    }
+    currentApps = apps;
+    const layout = getLayout(tvIp);
+    const displayed = applyLayout(apps, layout);
+    renderAppsGrid(displayed, layout);
+    // Add restore button inline
+    const restoreDiv = document.createElement('div');
+    restoreDiv.style.cssText = 'grid-column:1/-1;text-align:center;color:var(--green);font-size:0.75rem;padding:8px;margin-top:4px';
+    restoreDiv.innerHTML = `<button onclick="restoreAllApps()" style="background:none;border:1px solid var(--green);color:var(--green);border-radius:6px;padding:4px 12px;font-size:0.65rem;cursor:pointer;font-family:inherit">↺ Restore layout</button> <span style="color:var(--text2)">• layout saved on next refresh</span>`;
+    grid.appendChild(restoreDiv);
+  } catch(e) {
+    showToast('Failed to refresh apps', 'error');
+    if (wasManage) toggleManageMode();
+  } finally {
+    btn.textContent = '↻ Refresh';
+    btn.disabled = false;
+  }
+}
+
+async function loadApps() {
+  try {
+    const r = await fetch(`${API}/apps?ip=${encodeURIComponent(tvIp)}`);
+    const apps = await r.json();
+    const grid = document.getElementById('appsGrid');
+    if (!apps.length) {
+      currentApps = [];
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text2);font-size:0.8rem;padding:16px">No apps detected yet</div>';
+      return;
+    }
+    currentApps = apps;
+    const layout = getLayout(tvIp);
+    const displayed = applyLayout(apps, layout);
+    renderAppsGrid(displayed, layout);
+  } catch(e) {
+    showToast('Failed to load apps', 'error');
+  }
+}
+
+function toggleManageMode() {
+  manageMode = !manageMode;
+  const btn = document.getElementById('manageModeBtn');
+  btn.classList.toggle('active', manageMode);
+  btn.textContent = manageMode ? '✓ Done' : '✎ Manage';
+  // Clear any restore button that was appended
+  const grid = document.getElementById('appsGrid');
+  const restoreBtn = grid.querySelector('div[style*="grid-column"]');
+  if (restoreBtn) restoreBtn.remove();
+  if (manageMode) {
+    grid.querySelectorAll('.app-btn').forEach(el => el.setAttribute('draggable', 'true'));
+  } else {
+    grid.querySelectorAll('.app-btn').forEach(el => {
+      el.removeAttribute('draggable');
+      el.style.opacity = '';
+    });
+  }
+  // Re-render with current apps
+  if (currentApps.length) {
+    const layout = getLayout(tvIp);
+    const displayed = applyLayout(currentApps, layout);
+    renderAppsGrid(displayed, layout);
+  }
+}
+
+function removeApp(id) {
+  const layout = getLayout(tvIp);
+  if (!layout.removed.includes(id)) {
+    layout.removed.push(id);
+    saveLayout(tvIp, layout);
+    showToast('Removed', 'success');
+    // Re-apply layout on current apps
+    const displayed = applyLayout(currentApps, layout);
+    renderAppsGrid(displayed, layout);
+  }
+}
+
+function restoreAllApps() {
+  const layout = getLayout(tvIp);
+  layout.order = [];
+  layout.removed = [];
+  saveLayout(tvIp, layout);
+  showToast('Layout restored — all apps visible', 'success');
+  // Re-render all apps with clean layout
+  if (currentApps.length) {
+    renderAppsGrid(currentApps, { order: [], removed: [] });
+  }
+}
+
 function onDragStart(e, appId) {
   dragSrcId = appId;
-  e.target.classList.add('dragging');
+  const btn = e.target.closest('.app-btn') || e.target;
+  btn.classList.add('dragging');
   e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', appId);
 }
 
 function onDragOver(e) {
   e.preventDefault();
   e.dataTransfer.dropEffect = 'move';
-  const target = e.target.closest('.app-btn');
-  if (target) target.classList.add('drag-over');
+  const btn = e.target.closest('.app-btn');
+  if (btn) btn.classList.add('drag-over');
 }
 
 function onDrop(e, targetId) {
   e.preventDefault();
-  const target = e.target.closest('.app-btn');
-  if (target) target.classList.remove('drag-over');
+  const btn = e.target.closest('.app-btn');
+  if (btn) btn.classList.remove('drag-over');
   if (!dragSrcId || dragSrcId === targetId) return;
   // Update order in layout
   const layout = getLayout(tvIp);
@@ -497,11 +606,14 @@ function onDrop(e, targetId) {
     layout.order.push(dragSrcId);
   }
   saveLayout(tvIp, layout);
-  loadApps();
+  // Re-render with new order
+  const displayed = applyLayout(currentApps, layout);
+  renderAppsGrid(displayed, layout);
 }
 
 function onDragEnd(e) {
-  e.target.classList.remove('dragging');
+  const btn = e.target.closest('.app-btn') || e.target;
+  btn.classList.remove('dragging');
   document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
   dragSrcId = null;
 }
