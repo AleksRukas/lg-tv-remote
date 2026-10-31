@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Persistent data (stored in Docker volume)
+data/
+
+# Environment
+.env
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

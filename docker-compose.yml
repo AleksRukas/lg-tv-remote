@@ -1,0 +1,22 @@
+version: '3.8'
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    restart: unless-stopped
+    volumes:
+      - ./data:/data
+    ports:
+      - "5204:3000"
+    expose:
+      - "3000"
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    ports:
+      - "5203:8080"
+    restart: unless-stopped
+    depends_on:
+      - api

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>LG Remote</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{--bg:#0a0a0f;--surface:#14141f;--surface2:#1e1e2e;--accent:#6C5CE7;--accent2:#a29bfe;--red:#E84855;--green:#00B894;--text:#E8E8F0;--text2:#6B6B80;--radius:16px}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;max-width:480px;margin:0 auto;position:relative;overflow:hidden}
+
+/* ── Status bar ── */
+.status-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;font-size:0.7rem;color:var(--text2);letter-spacing:0.05em}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block;margin-right:6px}
+.status-dot.connected{background:var(--green);box-shadow:0 0 8px rgba(0,184,148,0.5)}
+.status-label{display:flex;align-items:center}
+
+/* ── Screens ── */
+.screen{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;transition:transform 0.4s cubic-bezier(0.4,0,0.2,1),opacity 0.3s;opacity:0;pointer-events:none;transform:translateX(30px)}
+.screen.active{opacity:1;pointer-events:all;transform:translateX(0)}
+
+/* ── Connect Screen ── */
+.connect-screen{justify-content:center;padding:40px 24px}
+.connect-logo{width:80px;height:80px;margin:0 auto 24px;background:linear-gradient(135deg,var(--accent),#8B5CF6);border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:2rem}
+.connect-title{font-size:1.6rem;font-weight:700;text-align:center;margin-bottom:4px}
+.connect-sub{font-size:0.85rem;color:var(--text2);text-align:center;margin-bottom:32px}
+.form-group{margin-bottom:16px}
+.form-label{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text2);margin-bottom:6px;display:block}
+.form-input{width:100%;background:var(--surface);border:1px solid var(--surface2);color:var(--text);padding:14px 16px;border-radius:var(--radius);font-size:1rem;font-family:inherit;outline:none;transition:border-color 0.2s}
+.form-input:focus{border-color:var(--accent)}
+.form-toggle{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+.form-toggle-label{font-size:0.85rem;flex:1}
+.toggle{width:48px;height:28px;background:var(--surface2);border-radius:14px;position:relative;cursor:pointer;transition:background 0.2s}
+.toggle.on{background:var(--accent)}
+.toggle::after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;background:white;border-radius:50%;transition:transform 0.2s}
+.toggle.on::after{transform:translateX(20px)}
+.btn-primary{width:100%;padding:16px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:1rem;font-weight:600;font-family:inherit;cursor:pointer;transition:all 0.2s}
+.btn-primary:active{transform:scale(0.97);background:var(--accent2)}
+.btn-primary:disabled{opacity:0.4;pointer-events:none}
+.pin-box{margin-top:20px;padding:16px;background:var(--surface);border:1px solid var(--accent);border-radius:var(--radius);display:none}
+.pin-box.show{display:block}
+.pin-code{font-family:monospace;font-size:2rem;text-align:center;letter-spacing:0.3em;color:var(--accent);margin:12px 0}
+.pin-input{width:100%;background:var(--bg);border:1px solid var(--surface2);color:var(--text);padding:12px;border-radius:12px;text-align:center;font-size:1.5rem;letter-spacing:0.2em;font-family:monospace;outline:none}
+
+/* ── Remote Screen ── */
+.remote-screen{padding:0}
+.remote-header{padding:16px 20px 8px;display:flex;align-items:center;justify-content:space-between}
+.remote-header h2{font-size:1.1rem;font-weight:600}
+.btn-disconnect{background:none;border:none;color:var(--text2);font-size:0.75rem;cursor:pointer;padding:8px}
+
+/* Power row */
+.power-row{display:flex;justify-content:space-between;align-items:stretch;padding:8px 20px 16px}
+.power-btn{width:60px;height:60px;border-radius:50%;background:var(--surface);border:2px solid var(--surface2);display:flex;align-items:center;justify-content:center;font-size:1.5rem;cursor:pointer;transition:all 0.2s;position:relative}
+.power-btn:active{transform:scale(0.92);border-color:var(--red)}
+.power-btn .pulse{position:absolute;width:100%;height:100%;border-radius:50%;border:2px solid var(--red);opacity:0;animation:pulse-ring 2s infinite}
+.power-btn.on .pulse{opacity:1}
+@keyframes pulse-ring{0%{transform:scale(1);opacity:0.5}100%{transform:scale(1.5);opacity:0}}
+
+/* Volume row */
+.volume-row{display:flex;align-items:center;gap:16px;padding:0 20px 16px}
+.vol-btn{flex:1;height:48px;background:var(--surface);border:1px solid var(--surface2);border-radius:var(--radius);color:var(--text);font-size:1.2rem;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s}
+.vol-btn:active{background:var(--accent);transform:scale(0.95)}
+.vol-btn.muted{background:var(--red);border-color:var(--red)}
+.vol-slider-wrap{flex:2;display:flex;align-items:center;height:48px}
+.vol-slider{-webkit-appearance:none;width:100%;height:6px;border-radius:3px;background:var(--surface2);outline:none;transition:all 0.2s}
+.vol-slider::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;background:var(--accent);cursor:pointer;box-shadow:0 0 10px rgba(108,92,231,0.4)}
+
+/* D-Pad */
+.dpad-section{display:flex;justify-content:center;padding:8px 20px 16px}
+.dpad{width:220px;height:220px;position:relative}
+.dpad-btn{position:absolute;width:70px;height:70px;background:var(--surface);border:1px solid var(--surface2);display:flex;align-items:center;justify-content:center;font-size:1.3rem;cursor:pointer;transition:all 0.15s;color:var(--text)}
+.dpad-btn:active{background:var(--accent);transform:scale(0.9)}
+.dpad-up{top:0;left:50%;transform:translateX(-50%);border-radius:14px 14px 4px 4px}
+.dpad-down{bottom:0;left:50%;transform:translateX(-50%);border-radius:4px 4px 14px 14px}
+.dpad-left{left:0;top:50%;transform:translateY(-50%);border-radius:14px 4px 4px 14px}
+.dpad-right{right:0;top:50%;transform:translateY(-50%);border-radius:4px 14px 14px 4px}
+.dpad-ok{top:50%;left:50%;transform:translate(-50%,-50%);width:60px;height:60px;border-radius:50%;background:var(--accent);border:none;font-size:0.9rem;font-weight:700;letter-spacing:0.05em}
+.dpad-ok:active{background:var(--accent2);transform:translate(-50%,-50%) scale(0.9)}
+
+/* Extra buttons row */
+.btn-row{display:flex;justify-content:center;gap:16px;padding:0 20px 20px}
+.side-btn{padding:12px 20px;background:var(--surface);border:1px solid var(--surface2);border-radius:var(--radius);color:var(--text2);font-size:0.8rem;font-weight:500;cursor:pointer;transition:all 0.15s;letter-spacing:0.02em}
+.side-btn:active{background:var(--accent);color:white;transform:scale(0.95)}
+
+/* Apps grid */
+.apps-section{padding:0 20px 20px}
+.apps-title{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text2);margin-bottom:12px}
+.apps-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.app-btn{aspect-ratio:1;border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;border:none;font-family:inherit;color:white;font-size:0.7rem;font-weight:500}
+.app-btn:active{transform:scale(0.9)}
+.app-icon{font-size:1.5rem;margin-bottom:4px}
+.input-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}
+.input-btn{padding:14px;background:var(--surface);border:1px solid var(--surface2);border-radius:12px;color:var(--text);font-size:0.85rem;text-align:center;cursor:pointer;transition:all 0.15s}
+.input-btn:active{background:var(--accent);transform:scale(0.95)}
+
+/* ── Scrollable content ── */
+.scroll-area{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+.scroll-area::-webkit-scrollbar{display:none}
+
+/* ── Toast ── */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-100px);background:var(--surface2);color:var(--text);padding:12px 24px;border-radius:var(--radius);font-size:0.85rem;transition:transform 0.3s;z-index:100;border:1px solid var(--surface2)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.error{border-color:var(--red)}
+.toast.success{border-color:var(--green)}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- CONNECT SCREEN -->
+<div class="screen connect-screen active" id="connectScreen">
+  <div class="connect-logo">📺</div>
+  <div class="connect-title">LG Remote</div>
+  <div class="connect-sub">Control your TV from anywhere</div>
+  <div class="form-group">
+    <label class="form-label">TV IP Address</label>
+    <input class="form-input" id="tvIp" type="text" inputmode="numeric" placeholder="192.168.1.xxx" value="" />
+  </div>
+  <button class="btn-primary" id="connectBtn" onclick="doConnect()">Connect to TV</button>
+  <div class="pin-box" id="pinBox">
+    <div style="text-align:center;color:var(--text2);font-size:0.85rem;margin:12px 0">
+      ⚡ A pairing request appeared on your TV.<br/>Please accept it now.
+    </div>
+    <button class="btn-primary" style="margin-top:8px" onclick="finishPairing()">I accepted it on TV</button>
+  </div>
+</div>
+
+<!-- REMOTE SCREEN -->
+<div class="screen remote-screen" id="remoteScreen">
+  <div class="status-bar">
+    <div class="status-label"><span class="status-dot" id="statusDot"></span><span id="statusText">Connecting...</span></div>
+    <button class="btn-disconnect" onclick="disconnect()">DISCONNECT</button>
+  </div>
+
+  <div class="scroll-area">
+    <!-- Power -->
+    <div class="power-row">
+      <div class="power-btn on" id="powerBtn" onclick="send('power',{action:'power'})">
+        <span>⏻</span>
+        <div class="pulse"></div>
+      </div>
+      <div style="flex:1"></div>
+      <div style="font-size:0.7rem;color:var(--text2);text-align:center;padding-top:14px">POWER</div>
+    </div>
+
+    <!-- Volume -->
+    <div class="volume-row">
+      <div class="vol-btn" onclick="send('volume',{action:'down'})">▼</div>
+      <div class="vol-btn muted" id="muteBtn" onclick="send('mute',{})">🔇</div>
+      <div class="vol-btn" onclick="send('volume',{action:'up'})">▲</div>
+    </div>
+    <div style="padding:0 48px 16px">
+      <input type="range" class="vol-slider" id="volSlider" min="0" max="100" value="30" oninput="send('volume/set',{volume:this.value})" />
+    </div>
+
+    <!-- D-Pad -->
+    <div class="dpad-section">
+      <div class="dpad">
+        <div class="dpad-btn dpad-up" onclick="send('button',{action:'Up'})">▲</div>
+        <div class="dpad-btn dpad-down" onclick="send('button',{action:'Down'})">▼</div>
+        <div class="dpad-btn dpad-left" onclick="send('button',{action:'Left'})">◀</div>
+        <div class="dpad-btn dpad-right" onclick="send('button',{action:'Right'})">▶</div>
+        <div class="dpad-btn dpad-ok" onclick="send('button',{action:'Enter'})">OK</div>
+      </div>
+    </div>
+
+    <!-- Side buttons -->
+    <div class="btn-row">
+      <div class="side-btn" onclick="send('button',{action:'Home'})">⌂ Home</div>
+      <div class="side-btn" onclick="send('button',{action:'Back'})">← Back</div>
+      <div class="side-btn" onclick="send('button',{action:'Menu'})">☰ Menu</div>
+    </div>
+
+    <!-- Color buttons -->
+    <div class="btn-row">
+      <div class="side-btn" style="background:#E84855;border-color:#E84855;color:white" onclick="send('button',{action:'Red'})">Red</div>
+      <div class="side-btn" style="background:#00B894;border-color:#00B894;color:white" onclick="send('button',{action:'Green'})">Green</div>
+      <div class="side-btn" style="background:#FDCB6E;border-color:#FDCB6E;color:#333" onclick="send('button',{action:'Yellow'})">Yellow</div>
+      <div class="side-btn" style="background:#6C5CE7;border-color:#6C5CE7;color:white" onclick="send('button',{action:'Blue'})">Blue</div>
+    </div>
+
+    <!-- Apps -->
+    <div class="apps-section">
+      <div class="apps-title">Quick Launch</div>
+      <div class="apps-grid" id="appsGrid"></div>
+    </div>
+
+    <!-- Inputs -->
+    <div class="apps-section">
+      <div class="apps-title">Input Source</div>
+      <div class="input-grid">
+        <div class="input-btn" onclick="send('input/switch',{inputId:'HDMI_1'})">HDMI 1</div>
+        <div class="input-btn" onclick="send('input/switch',{inputId:'HDMI_2'})">HDMI 2</div>
+        <div class="input-btn" onclick="send('input/switch',{inputId:'HDMI_3'})">HDMI 3</div>
+        <div class="input-btn" onclick="send('input/switch',{inputId:'HDMI_4'})">HDMI 4</div>
+      </div>
+    </div>
+
+    <div style="height:40px"></div>
+  </div>
+</div>
+
+<script>
+const API = '/api';
+let tvIp = '';
+let pollInterval = null;
+
+function showToast(msg, type='error') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(() => t.className = 'toast', 2500);
+}
+
+async function doConnect() {
+  tvIp = document.getElementById('tvIp').value.trim();
+  if (!tvIp) return showToast('Enter TV IP address');
+
+  const btn = document.getElementById('connectBtn');
+  btn.disabled = true;
+  btn.textContent = 'Connecting...';
+
+  try {
+    const r = await fetch(`${API}/connect`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ ip: tvIp })
+    });
+    const data = await r.json();
+
+    if (!data.success) {
+      showToast(data.message || 'Connection failed', 'error');
+    } else {
+      // Show "accept on TV" box — the TV should show a prompt
+      document.getElementById('pinBox').classList.add('show');
+    }
+  } catch (e) {
+    showToast('Connection failed. Check IP.', 'error');
+  }
+  btn.disabled = false;
+  btn.textContent = 'Connect to TV';
+}
+
+async function finishPairing() {
+  document.getElementById('pinBox').classList.remove('show');
+
+  // Poll for paired status — the server gets "registered" when TV accepts
+  let attempts = 0;
+  const maxAttempts = 20; // 10 seconds max
+  const check = async () => {
+    attempts++;
+    try {
+      const r = await fetch(`${API}/status?ip=${encodeURIComponent(tvIp)}`);
+      const data = await r.json();
+      if (data.connected && data.paired) {
+        if (pollInterval) clearInterval(pollInterval);
+        showToast('TV paired successfully!', 'success');
+        showRemote();
+      } else if (attempts >= maxAttempts) {
+        showToast('Pairing timed out. Try again.', 'error');
+        if (pollInterval) clearInterval(pollInterval);
+      }
+      // else keep polling
+    } catch(e) { /* ignore */ }
+  };
+  check();
+  pollInterval = setInterval(check, 500);
+}
+
+function showRemote() {
+  document.getElementById('connectScreen').classList.remove('active');
+  document.getElementById('remoteScreen').classList.add('active');
+  updateStatus(true);
+  loadApps();
+}
+
+function disconnect() {
+  if (pollInterval) clearInterval(pollInterval);
+  fetch(`${API}/disconnect`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ ip: tvIp })
+  });
+  document.getElementById('remoteScreen').classList.remove('active');
+  document.getElementById('connectScreen').classList.add('active');
+  showToast('Disconnected', 'success');
+}
+
+function updateStatus(connected) {
+  document.getElementById('statusDot').className = 'status-dot' + (connected ? ' connected' : '');
+  document.getElementById('statusText').textContent = connected ? 'Connected' : 'Disconnected';
+}
+
+async function send(endpoint, payload) {
+  try {
+    await fetch(`${API}/${endpoint}`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ ip: tvIp, ...payload })
+    });
+  } catch (e) {
+    showToast('Send failed', 'error');
+  }
+}
+
+async function loadApps() {
+  try {
+    const r = await fetch(`${API}/apps/common`);
+    const apps = await r.json();
+    const grid = document.getElementById('appsGrid');
+    grid.innerHTML = apps.map(a => `
+      <button class="app-btn" style="background:${a.color}" onclick="send('launch',{appId:'${a.id}'})">
+        <span class="app-icon">${a.icon}</span>
+        <span>${a.name}</span>
+      </button>
+    `).join('');
+  } catch(e) {
+    showToast('Failed to load apps', 'error');
+  }
+}
+
+// Haptic feedback
+document.querySelectorAll('.dpad-btn,.vol-btn,.side-btn,.app-btn,.input-btn,.power-btn').forEach(el => {
+  el.addEventListener('touchstart', () => { try { navigator.vibrate && navigator.vibrate(10); } catch(e){} }, {passive:true});
+});
+</script>
+</body>
+</html>
