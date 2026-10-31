@@ -181,8 +181,15 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;max-w
 
     <!-- Apps -->
     <div class="apps-section">
-      <div class="apps-title">Quick Launch</div>
-      <div class="apps-grid" id="appsGrid"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="apps-title" style="margin:0">Installed Apps</div>
+        <button class="refresh-btn" id="refreshAppsBtn" onclick="refreshApps()" style="background:none;border:1px solid var(--text2);color:var(--text2);border-radius:4px;padding:4px 10px;font-size:0.7rem;cursor:pointer">↻ Refresh</button>
+      </div>
+      <div class="apps-grid" id="appsGrid">
+        <div style="grid-column:1/-1;text-align:center;color:var(--text2);font-size:0.8rem;padding:16px">
+          Connecting… loading apps
+        </div>
+      </div>
     </div>
 
     <!-- Inputs -->
@@ -303,17 +310,54 @@ async function send(endpoint, payload) {
   }
 }
 
-async function loadApps() {
+async function refreshApps() {
+  const btn = document.getElementById('refreshAppsBtn');
+  btn.textContent = '⟳';
+  btn.disabled = true;
   try {
-    const r = await fetch(`${API}/apps/common`);
+    const r = await fetch(`${API}/apps/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ip: tvIp })
+    });
     const apps = await r.json();
     const grid = document.getElementById('appsGrid');
-    grid.innerHTML = apps.map(a => `
-      <button class="app-btn" style="background:${a.color}" onclick="send('launch',{appId:'${a.id}'})">
-        <span class="app-icon">${a.icon}</span>
-        <span>${a.name}</span>
-      </button>
-    `).join('');
+    if (!apps.length) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text2);font-size:0.8rem;padding:16px">No apps detected yet</div>';
+      return;
+    }
+    grid.innerHTML = apps.map(a => {
+      const bgColor = a.color || '#333';
+      const iconHtml = a.icon && a.icon.startsWith('http')
+        ? `<img src="${a.icon}" style="width:28px;height:28px;border-radius:6px;object-fit:contain" loading="lazy">`
+        : `<span class="app-icon">${a.name ? a.name[0].toUpperCase() : '?'}</span>`;
+      return `<button class="app-btn" style="background:${bgColor}" onclick="send('launch',{appId:'${a.id}'})">${iconHtml}<span>${a.name}</span></button>`;
+    }).join('');
+  } catch(e) {
+    showToast('Failed to refresh apps', 'error');
+  } finally {
+    btn.textContent = '↻ Refresh';
+    btn.disabled = false;
+  }
+}
+
+async function loadApps() {
+  try {
+    const r = await fetch(`${API}/apps?ip=${encodeURIComponent(tvIp)}`);
+    const apps = await r.json();
+    const grid = document.getElementById('appsGrid');
+    if (!apps.length) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text2);font-size:0.8rem;padding:16px">No apps detected yet</div>';
+      return;
+    }
+    grid.innerHTML = apps.map(a => {
+      const bgColor = a.color || '#333';
+      // Use icon image if available, otherwise show first letter of name
+      const iconHtml = a.icon && a.icon.startsWith('http')
+        ? `<img src="${a.icon}" style="width:28px;height:28px;border-radius:6px;object-fit:contain" loading="lazy">`
+        : `<span class="app-icon">${a.name ? a.name[0].toUpperCase() : '?'}</span>`;
+      return `<button class="app-btn" style="background:${bgColor}" onclick="send('launch',{appId:'${a.id}'})">${iconHtml}<span>${a.name}</span></button>`;
+    }).join('');
   } catch(e) {
     showToast('Failed to load apps', 'error');
   }

@@ -118,10 +118,11 @@ function attachEvents(ip) {
         } catch(e) {
           console.log(`[TV ${ip}] Could not save key: ${e.message}`);
         }
-        // Try to open input socket once after pairing
+        // Try to open input socket and fetch app list after pairing
         if (!entry.socketRequested) {
           entry.socketRequested = true;
-          setTimeout(() => tryOpenInputSocket(ip), 2000);
+          setTimeout(() => tryOpenInputSocket(ip), 1000);
+          setTimeout(() => fetchLaunchPoints(ip), 3000);
         }
       }
 
@@ -139,6 +140,20 @@ function attachEvents(ip) {
         });
       }
 
+      if (msg.type === 'response' && msg.payload?.launchPoints) {
+        // Cache installed app list
+        const apps = (msg.payload.launchPoints || [])
+          .filter(a => a.visible !== false)
+          .map(a => ({
+            id: a.id,
+            name: a.title || a.id,
+            color: a.bgColor || '#333',
+            icon: a.iconImage || ''
+          }));
+        entry.launchPoints = apps;
+        console.log(`[TV ${ip}] ✓ Found ${apps.length} apps`);
+      }
+
       if (msg.type === 'error') {
         // Ignore 404 errors for services not supported on C9
         const code = msg.error || '';
@@ -153,8 +168,14 @@ function attachEvents(ip) {
 function tryOpenInputSocket(ip) {
   const entry = TV_STORE[ip];
   if (!entry || !entry.mainWs || entry.mainWs.readyState !== WebSocket.OPEN) return;
-  // C9 may not support getPointerInputSocket — try it, handle 404 gracefully
   sendSSAP(ip, 'com.webos.service.networkinput/getPointerInputSocket', {});
+}
+
+/* ── Fetch installed apps ── */
+function fetchLaunchPoints(ip) {
+  const entry = TV_STORE[ip];
+  if (!entry || !entry.mainWs || entry.mainWs.readyState !== WebSocket.OPEN) return;
+  sendSSAP(ip, 'com.webos.applicationManager/listLaunchPoints', {});
 }
 
 /* ── REST API ── */
@@ -214,7 +235,8 @@ app.post('/api/connect', async (req, res) => {
       paired: false,
       clientKey: savedKey,
       commandCount: 0,
-      buttonSocket: null
+      buttonSocket: null,
+      launchPoints: null
     };
     TV_STORE[ip] = entry;
     attachEvents(ip);
@@ -400,15 +422,31 @@ app.post('/api/media', (req, res) => {
   res.json({ success: true });
 });
 
-app.get('/api/apps/common', (req, res) => res.json([
-  { id: 'netflix', name: 'Netflix', color: '#E50914', icon: 'N' },
-  { id: 'youtube', name: 'YouTube', color: '#FF0000', icon: '▶' },
-  { id: 'disney', name: 'Disney+', color: '#0063E5', icon: 'D+' },
-  { id: 'primevideo', name: 'Prime Video', color: '#00A8E1', icon: 'P' },
-  { id: 'hbo', name: 'HBO Max', color: '#B333FF', icon: 'H' },
-  { id: 'twitch', name: 'Twitch', color: '#9146FF', icon: 'T' },
-  { id: 'browser', name: 'Browser', color: '#666', icon: '🌐' }
-]));
+app.get('/api/apps', (req, res) => {
+  const ip = req.query.ip;
+  if (!ip) return res.json([]);
+  const entry = TV_STORE[ip];
+  if (entry?.launchPoints) return res.json(entry.launchPoints);
+  // No cached list — try fetching it
+  if (entry?.mainWs?.readyState === WebSocket.OPEN) {
+    fetchLaunchPoints(ip);
+  }
+  res.json([]);
+});
+
+app.post('/api/apps/refresh', (req, res) => {
+  const ip = req.body?.ip;
+  if (!ip) return res.json([]);
+  const entry = TV_STORE[ip];
+  if (!entry?.mainWs?.readyState === WebSocket.OPEN) return res.json([]);
+  fetchLaunchPoints(ip);
+  setTimeout(() => {
+    const updated = entry?.launchPoints || [];
+    res.json(updated);
+  }, 1500);
+});
+
+app.get('/api/apps/common', (req, res) => res.json([]));
 
 const PORT = 3000;
 app.listen(PORT, '0.0.0.0', () => console.log(`LG WebOS Remote API on port ${PORT}`));
