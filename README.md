@@ -7,10 +7,10 @@ Tested on  2019 LG C9 with latest WebOS. Some functions might still not work.
 
 ```
 ┌─────────────────┐         ┌──────────────────┐         ┌────────────┐
-│  Mobile Browser  │────────▶│   Nginx (UI)     │────────▶│   TV        │
-│  (port 5203)     │  HTTP   │  (port 8080)     │  WS     │  (port 3001)│
-└─────────────────┘         │                  │◀────────│             │
-                            │  /api/ proxy     │  JSON   │  WebOS SSAP │
+│  Mobile Browser │───────▶│   Nginx (UI)     │────────▶│   TV       │
+│  (port 5203)    │  HTTP   │  (port 8080)     │  WS     │ (port 3001)│
+└─────────────────┘         │                  │◀───────│             │
+                            │  /api/ proxy     │  JSON   │ WebOS SSAP │
                             └──────────────────┘         └────────────┘
                                        │
                                        ▼
