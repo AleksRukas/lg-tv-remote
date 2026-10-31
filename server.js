@@ -353,31 +353,31 @@ app.post('/api/input/switch', (req, res) => {
   if (!entry || !entry.mainWs || entry.mainWs.readyState !== WebSocket.OPEN) {
     return res.json({ success: false });
   }
-  // HDMI app IDs for webOS 4 (C9)
-  const inputApps = {
-    'HDMI_1': 'com.webos.app.externalinput.1',
-    'HDMI_2': 'com.webos.app.externalinput.2',
-    'HDMI_3': 'com.webos.app.externalinput.3',
-    'HDMI_4': 'com.webos.app.externalinput.4',
+  // Use ssap://tv/switchInput with native input IDs (HDMI_1, HDMI_2, etc.)
+  const inputMap = {
+    'HDMI_1': 'HDMI_1',
+    'HDMI_2': 'HDMI_2',
+    'HDMI_3': 'HDMI_3',
+    'HDMI_4': 'HDMI_4',
   };
-  const appId = inputApps[inputId] || inputId;
-  sendSSAP(ip, 'system.launcher/launch', { id: appId });
-  res.json({ success: true, method: 'ssap', inputId: appId });
+  const tvInputId = inputMap[inputId] || inputId;
+  sendSSAP(ip, 'tv/switchInput', { inputId: tvInputId });
+  res.json({ success: true, method: 'ssap', inputId: tvInputId });
 });
 
 app.post('/api/launch', (req, res) => {
   const { ip, appId } = req.body;
   if (!appId || !ip) return res.status(400).json({ error: 'appId + IP required' });
-  // HDMI inputs mapped from the input_ prefix
+  // HDMI inputs mapped from the input_ prefix — use tv/switchInput
   const hdmiMap = {
-    input_1: 'com.webos.app.externalinput.1',
-    input_2: 'com.webos.app.externalinput.2',
-    input_3: 'com.webos.app.externalinput.3',
-    input_4: 'com.webos.app.externalinput.4',
+    'input_1': 'HDMI_1',
+    'input_2': 'HDMI_2',
+    'input_3': 'HDMI_3',
+    'input_4': 'HDMI_4',
   };
   const mapped = hdmiMap[appId];
   if (mapped) {
-    sendSSAP(ip, 'system.launcher/launch', { id: mapped });
+    sendSSAP(ip, 'tv/switchInput', { inputId: mapped });
     res.json({ success: true, method: 'ssap', appId: mapped });
   } else if (appId === 'tv') {
     // Live TV
