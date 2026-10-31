@@ -141,17 +141,29 @@ function attachEvents(ip) {
       }
 
       if (msg.type === 'response' && msg.payload?.launchPoints) {
-        // Cache installed app list
+        // Cache installed app list with icon URLs
         const apps = (msg.payload.launchPoints || [])
           .filter(a => a.visible !== false)
-          .map(a => ({
-            id: a.id,
-            name: a.title || a.id,
-            color: a.bgColor || '#333',
-            icon: a.iconImage || ''
-          }));
+          .map(a => {
+            // Construct full icon URL from TV's internal web server path
+            let iconUrl = '';
+            if (a.largeIcon) {
+              iconUrl = a.largeIcon.startsWith('http') ? a.largeIcon : `http://${ip}:3000${a.largeIcon}`;
+            } else if (a.mediumLargeIcon) {
+              iconUrl = a.mediumLargeIcon.startsWith('http') ? a.mediumLargeIcon : `http://${ip}:3000${a.mediumLargeIcon}`;
+            } else if (a.iconImage) {
+              iconUrl = a.iconImage.startsWith('http') ? a.iconImage : `http://${ip}:3000${a.iconImage}`;
+            }
+            return {
+              id: a.id,
+              name: a.title || a.id,
+              color: a.bgColor || '#333',
+              icon: iconUrl
+            };
+          });
         entry.launchPoints = apps;
-        console.log(`[TV ${ip}] ✓ Found ${apps.length} apps`);
+        const withIcons = apps.filter(a => a.icon).length;
+        console.log(`[TV ${ip}] ✓ Found ${apps.length} apps (${withIcons} with icons)`);
       }
 
       if (msg.type === 'error') {
