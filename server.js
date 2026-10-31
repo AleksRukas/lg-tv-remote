@@ -216,6 +216,7 @@ app.post('/api/connect', async (req, res) => {
       success: true,
       ip,
       paired: true,
+      needsPairing: false,
       message: 'Already connected and paired.'
     });
   }

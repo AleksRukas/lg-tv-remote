@@ -251,7 +251,7 @@ async function doConnect() {
     if (!data.success) {
       showToast(data.message || 'Connection failed', 'error');
     } else {
-      if (data.needsPairing) {
+      if (data.needsPairing === true) {
         // Show "accept on TV" box — the TV should show a prompt
         document.getElementById('pinBox').classList.add('show');
       } else {
