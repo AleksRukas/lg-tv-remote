@@ -251,8 +251,13 @@ async function doConnect() {
     if (!data.success) {
       showToast(data.message || 'Connection failed', 'error');
     } else {
-      // Show "accept on TV" box — the TV should show a prompt
-      document.getElementById('pinBox').classList.add('show');
+      if (data.needsPairing) {
+        // Show "accept on TV" box — the TV should show a prompt
+        document.getElementById('pinBox').classList.add('show');
+      } else {
+        // Auto-pairing succeeded — go straight to remote
+        showRemote();
+      }
     }
   } catch (e) {
     showToast('Connection failed. Check IP.', 'error');
