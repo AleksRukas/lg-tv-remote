@@ -1,6 +1,7 @@
-# LG TV Remote Control
+# LG TV Remote Control - BETA
 
 A lightweight, mobile-friendly web remote control for LG Smart TVs running WebOS, built with Node.js and deployed via Docker Compose.
+Tested on  2019 LG C9 with latest WebOS. Some functions might still not work. 
 
 ## Architecture
 
