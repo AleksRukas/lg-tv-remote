@@ -152,7 +152,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;max-w
     <!-- Volume -->
     <div class="volume-row">
       <div class="vol-btn" onclick="send('volume',{action:'down'})">▼</div>
-      <div class="vol-btn muted" id="muteBtn" onclick="send('mute',{})">🔇</div>
+      <div class="vol-btn muted" id="muteBtn" onclick="toggleMute()">🔇</div>
       <div class="vol-btn" onclick="send('volume',{action:'up'})">▲</div>
     </div>
     <div style="padding:0 48px 16px">
@@ -323,6 +323,18 @@ async function loadApps() {
   } catch(e) {
     showToast('Failed to load apps', 'error');
   }
+}
+
+// Track mute state locally
+let muteState = false; // true = muted
+
+function toggleMute() {
+  muteState = !muteState;
+  const btn = document.getElementById('muteBtn');
+  send('mute', { toggle: muteState });
+  btn.textContent = muteState ? '🔇' : '🔊';
+  btn.style.background = muteState ? 'var(--red)' : '';
+  btn.style.borderColor = muteState ? 'var(--red)' : '';
 }
 
 // Haptic feedback

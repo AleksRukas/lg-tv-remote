@@ -303,8 +303,10 @@ app.post('/api/volume/set', (req, res) => {
 });
 
 app.post('/api/mute', (req, res) => {
-  const { ip } = req.body;
-  sendSSAP(ip, 'audio/setMute', { mute: true });
+  const { ip, toggle } = req.body;
+  // toggle=true means set to muted (on), toggle=false means unmute (off)
+  const isMuted = toggle !== undefined ? toggle : true;
+  sendSSAP(ip, 'audio/setMute', { mute: isMuted });
   res.json({ success: true });
 });
 
