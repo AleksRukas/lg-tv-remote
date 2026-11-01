@@ -200,6 +200,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;max-w
         <div class="app-toolbar">
           <button id="manageModeBtn" onclick="toggleManageMode()">✎ Manage</button>
           <button id="refreshAppsBtn" onclick="refreshApps()">↻ Refresh</button>
+          <button id="restoreLayoutBtn" onclick="restoreAllApps()">↺ Restore</button>
         </div>
       </div>
       <div class="apps-grid" id="appsGrid">
@@ -411,37 +412,29 @@ async function refreshApps() {
   const btn = document.getElementById('refreshAppsBtn');
   const wasManage = manageMode;
   if (wasManage) toggleManageMode(); // exit manage mode
-  if (wasManage) toggleManageMode();
   btn.textContent = '⟳';
   btn.disabled = true;
   try {
+    // Clear saved layout first
+    const layout = getLayout(tvIp);
+    layout.order = [];
+    layout.removed = [];
+    saveLayout(tvIp, layout);
+
     const r = await fetch(`${API}/apps/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ip: tvIp })
     });
     const apps = await r.json();
-    // Show restore button when apps loaded
     const grid = document.getElementById('appsGrid');
-    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--green);font-size:0.8rem;padding:8px"><button onclick="restoreAllApps()" style="background:none;border:1px solid var(--green);color:var(--green);border-radius:6px;padding:4px 12px;font-size:0.7rem;cursor:pointer;font-family:inherit">↺ Restore Layout</button> <span style="color:var(--text2)">• new layout saved on next refresh</span></div>';
-    // After restore UI, load apps normally
     if (!apps.length) {
       currentApps = [];
       grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text2);font-size:0.8rem;padding:16px">No apps detected yet</div>';
       return;
     }
-    const layout = getLayout(tvIp);
-    const displayed = applyLayout(apps, layout);
-    renderAppsGrid(displayed, layout);
     currentApps = apps;
-    const layout = getLayout(tvIp);
-    const displayed = applyLayout(apps, layout);
-    renderAppsGrid(displayed);
-    // Add restore button
-    const restoreDiv = document.createElement('div');
-    restoreDiv.style.cssText = 'grid-column:1/-1;text-align:center;color:var(--green);font-size:0.75rem;padding:8px;margin-top:4px';
-    restoreDiv.innerHTML = `<button onclick="restoreAllApps()" style="background:none;border:1px solid var(--green);color:var(--green);border-radius:6px;padding:4px 12px;font-size:0.65rem;cursor:pointer;font-family:inherit">↺ Restore layout</button> <span style="color:var(--text2)">• saved on next refresh</span>`;
-    grid.appendChild(restoreDiv);
+    renderAppsGrid(apps);
   } catch(e) {
     showToast('Failed to refresh apps', 'error');
     if (wasManage) toggleManageMode();
@@ -461,9 +454,6 @@ async function loadApps() {
       grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text2);font-size:0.8rem;padding:16px">No apps detected yet</div>';
       return;
     }
-    const layout = getLayout(tvIp);
-    const displayed = applyLayout(apps, layout);
-    renderAppsGrid(displayed, layout);
     currentApps = apps;
     const layout = getLayout(tvIp);
     const displayed = applyLayout(apps, layout);
@@ -473,12 +463,6 @@ async function loadApps() {
   }
 }
 
-function renderAppsGrid(apps, layout) {
-  if (!apps) {
-    // Need apps to render — reload from API
-    loadApps();
-    return;
-  }
 function renderAppsGrid(apps) {
   if (!apps || !apps.length) { loadApps(); return; }
   const grid = document.getElementById('appsGrid');
@@ -498,119 +482,6 @@ function renderAppsGrid(apps) {
     grid.querySelectorAll('.app-btn').forEach(el => {
       el.setAttribute('draggable', 'true');
     });
-  }
-}
-
-// Keep a reference to the current apps array for remove/restore operations
-let currentApps = [];
-
-function refreshApps() {
-  const btn = document.getElementById('refreshAppsBtn');
-  const wasManage = manageMode;
-  if (wasManage) toggleManageMode(); // exit manage mode
-  btn.textContent = '⟳';
-  btn.disabled = true;
-  try {
-    const r = await fetch(`${API}/apps/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ip: tvIp })
-    });
-    const apps = await r.json();
-    if (!apps.length) {
-      currentApps = [];
-      document.getElementById('appsGrid').innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text2);font-size:0.8rem;padding:16px">No apps detected yet</div>';
-      return;
-    }
-    currentApps = apps;
-    const layout = getLayout(tvIp);
-    const displayed = applyLayout(apps, layout);
-    renderAppsGrid(displayed, layout);
-    // Add restore button inline
-    const restoreDiv = document.createElement('div');
-    restoreDiv.style.cssText = 'grid-column:1/-1;text-align:center;color:var(--green);font-size:0.75rem;padding:8px;margin-top:4px';
-    restoreDiv.innerHTML = `<button onclick="restoreAllApps()" style="background:none;border:1px solid var(--green);color:var(--green);border-radius:6px;padding:4px 12px;font-size:0.65rem;cursor:pointer;font-family:inherit">↺ Restore layout</button> <span style="color:var(--text2)">• layout saved on next refresh</span>`;
-    grid.appendChild(restoreDiv);
-  } catch(e) {
-    showToast('Failed to refresh apps', 'error');
-    if (wasManage) toggleManageMode();
-  } finally {
-    btn.textContent = '↻ Refresh';
-    btn.disabled = false;
-  }
-}
-
-async function loadApps() {
-  try {
-    const r = await fetch(`${API}/apps?ip=${encodeURIComponent(tvIp)}`);
-    const apps = await r.json();
-    const grid = document.getElementById('appsGrid');
-    if (!apps.length) {
-      currentApps = [];
-      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text2);font-size:0.8rem;padding:16px">No apps detected yet</div>';
-      return;
-    }
-    currentApps = apps;
-    const layout = getLayout(tvIp);
-    const displayed = applyLayout(apps, layout);
-    renderAppsGrid(displayed, layout);
-  } catch(e) {
-    showToast('Failed to load apps', 'error');
-  }
-}
-
-function toggleManageMode() {
-  manageMode = !manageMode;
-  const btn = document.getElementById('manageModeBtn');
-  btn.classList.toggle('active', manageMode);
-  btn.textContent = manageMode ? '✓ Done' : '✎ Manage';
-  // Clear any restore button that was appended
-  const grid = document.getElementById('appsGrid');
-  const restoreBtn = grid.querySelector('div[style*="grid-column"]');
-  if (restoreBtn) restoreBtn.remove();
-  if (manageMode) {
-    grid.querySelectorAll('.app-btn').forEach(el => el.setAttribute('draggable', 'true'));
-  } else {
-    grid.querySelectorAll('.app-btn').forEach(el => {
-      el.removeAttribute('draggable');
-      el.style.opacity = '';
-    });
-  }
-  // Re-render with current apps
-  if (currentApps.length) {
-    const layout = getLayout(tvIp);
-    const displayed = applyLayout(currentApps, layout);
-    renderAppsGrid(displayed, layout);
-  }
-}
-
-function removeApp(id) {
-  const layout = getLayout(tvIp);
-  if (!layout.removed.includes(id)) {
-    layout.removed.push(id);
-    saveLayout(tvIp, layout);
-    showToast('Removed', 'success');
-    // Re-apply layout on current apps
-    const displayed = applyLayout(currentApps, layout);
-    renderAppsGrid(displayed, layout);
-  }
-}
-
-function restoreAllApps() {
-  const layout = getLayout(tvIp);
-  layout.order = [];
-  layout.removed = [];
-  saveLayout(tvIp, layout);
-  showToast('Layout restored — all apps visible', 'success');
-  // Re-render all apps with clean layout
-  if (currentApps.length) {
-    renderAppsGrid(currentApps, { order: [], removed: [] });
-    const removeBtn = manageMode ? `<div class="remove-btn" style="display:flex" onclick="event.stopPropagation();removeApp('${a.id}')" title="Remove">×</div>` : '';
-    const dragAttrs = manageMode ? `draggable="true" ondragstart="onDragStart(event,'${a.id}')" ondragover="onDragOver(event)" ondrop="onDrop(event,'${a.id}')" ondragend="onDragEnd(event)"` : '';
-    return `<button class="app-btn" style="background:${bgColor}" onclick="send('launch',{appId:'${a.id}'})" ${dragAttrs}>${removeBtn}${iconHtml}<span>${name}</span></button>`;
-  }).join('');
-  if (manageMode) {
-    grid.querySelectorAll('.app-btn').forEach(el => el.setAttribute('draggable', 'true'));
   }
 }
 
@@ -634,7 +505,6 @@ function onDrop(e, targetId) {
   const btn = e.target.closest('.app-btn');
   if (btn) btn.classList.remove('drag-over');
   if (!dragSrcId || dragSrcId === targetId) return;
-  // Update order in layout
   const layout = getLayout(tvIp);
   const idx = layout.order.indexOf(dragSrcId);
   if (idx > -1) layout.order.splice(idx, 1);
@@ -645,9 +515,6 @@ function onDrop(e, targetId) {
     layout.order.push(dragSrcId);
   }
   saveLayout(tvIp, layout);
-  // Re-render with new order
-  const displayed = applyLayout(currentApps, layout);
-  renderAppsGrid(displayed, layout);
   const displayed = applyLayout(currentApps, layout);
   renderAppsGrid(displayed);
 }
