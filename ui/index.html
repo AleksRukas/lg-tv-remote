@@ -84,7 +84,11 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;max-w
 .side-btn{padding:12px 20px;background:var(--surface);border:1px solid var(--surface2);border-radius:var(--radius);color:var(--text2);font-size:0.8rem;font-weight:500;cursor:pointer;transition:all 0.15s;letter-spacing:0.02em}
 .side-btn:active{background:var(--accent);color:white;transform:scale(0.95)}
 
-/* Apps grid */
+/* ── App management toolbar ── */
+.app-toolbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.app-toolbar button{background:none;border:1px solid var(--text2);color:var(--text2);border-radius:6px;padding:4px 10px;font-size:0.65rem;cursor:pointer;font-family:inherit;transition:all 0.15s}
+.app-toolbar button.active{background:var(--accent);border-color:var(--accent);color:white}
+.app-toolbar button:hover{border-color:var(--accent)}
 .apps-section{padding:0 20px 20px}
 .apps-title{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text2);margin-bottom:12px}
 /* ── App management toolbar ── */
@@ -331,6 +335,7 @@ async function send(endpoint, payload) {
 let manageMode = false;
 let dragSrcId = null;
 const CONFIG_KEY = 'lg-remote-config';
+let currentApps = [];
 
 function getLayout(ip) {
   try {
@@ -350,11 +355,9 @@ function saveLayout(ip, layout) {
 function applyLayout(allApps, layout) {
   const { order, removed } = layout;
   if (!order.length && !removed.length) return allApps;
-  // Filter removed
   let apps = allApps.filter(a => !removed.includes(a.id));
-  // Order: apps in order array first (by index), rest appended
   const orderIds = new Set(order);
-  const ordered = order.filter(id => apps.find(a => a.id === id));
+  const ordered = order.filter(id => apps.find(a => a.id === id)).map(id => apps.find(a => a.id === id));
   const remaining = apps.filter(a => !orderIds.has(a.id));
   return [...ordered, ...remaining];
 }
@@ -364,18 +367,20 @@ function toggleManageMode() {
   const btn = document.getElementById('manageModeBtn');
   btn.classList.toggle('active', manageMode);
   btn.textContent = manageMode ? '✓ Done' : '✎ Manage';
-  // Update grid styles
   const grid = document.getElementById('appsGrid');
   if (manageMode) {
-    grid.style.gridTemplateColumns = 'repeat(4, 1fr)';
+    grid.querySelectorAll('.app-btn').forEach(el => el.setAttribute('draggable', 'true'));
   } else {
-    // Clear drag attributes
     grid.querySelectorAll('.app-btn').forEach(el => {
       el.removeAttribute('draggable');
       el.style.opacity = '';
     });
   }
-  renderAppsGrid();
+  if (currentApps.length) {
+    const layout = getLayout(tvIp);
+    const displayed = applyLayout(currentApps, layout);
+    renderAppsGrid(displayed);
+  }
 }
 
 function removeApp(id) {
@@ -385,6 +390,8 @@ function removeApp(id) {
     saveLayout(tvIp, layout);
     showToast('Removed', 'success');
     renderAppsGrid();
+    const displayed = applyLayout(currentApps, layout);
+    renderAppsGrid(displayed);
   }
 }
 
@@ -395,12 +402,16 @@ function restoreAllApps() {
   saveLayout(tvIp, layout);
   showToast('Layout restored — all apps visible', 'success');
   renderAppsGrid();
+  if (currentApps.length) {
+    renderAppsGrid(currentApps);
+  }
 }
 
 async function refreshApps() {
   const btn = document.getElementById('refreshAppsBtn');
   const wasManage = manageMode;
   if (wasManage) toggleManageMode(); // exit manage mode
+  if (wasManage) toggleManageMode();
   btn.textContent = '⟳';
   btn.disabled = true;
   try {
@@ -415,12 +426,22 @@ async function refreshApps() {
     grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--green);font-size:0.8rem;padding:8px"><button onclick="restoreAllApps()" style="background:none;border:1px solid var(--green);color:var(--green);border-radius:6px;padding:4px 12px;font-size:0.7rem;cursor:pointer;font-family:inherit">↺ Restore Layout</button> <span style="color:var(--text2)">• new layout saved on next refresh</span></div>';
     // After restore UI, load apps normally
     if (!apps.length) {
+      currentApps = [];
       grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text2);font-size:0.8rem;padding:16px">No apps detected yet</div>';
       return;
     }
     const layout = getLayout(tvIp);
     const displayed = applyLayout(apps, layout);
     renderAppsGrid(displayed, layout);
+    currentApps = apps;
+    const layout = getLayout(tvIp);
+    const displayed = applyLayout(apps, layout);
+    renderAppsGrid(displayed);
+    // Add restore button
+    const restoreDiv = document.createElement('div');
+    restoreDiv.style.cssText = 'grid-column:1/-1;text-align:center;color:var(--green);font-size:0.75rem;padding:8px;margin-top:4px';
+    restoreDiv.innerHTML = `<button onclick="restoreAllApps()" style="background:none;border:1px solid var(--green);color:var(--green);border-radius:6px;padding:4px 12px;font-size:0.65rem;cursor:pointer;font-family:inherit">↺ Restore layout</button> <span style="color:var(--text2)">• saved on next refresh</span>`;
+    grid.appendChild(restoreDiv);
   } catch(e) {
     showToast('Failed to refresh apps', 'error');
     if (wasManage) toggleManageMode();
@@ -436,12 +457,17 @@ async function loadApps() {
     const apps = await r.json();
     const grid = document.getElementById('appsGrid');
     if (!apps.length) {
+      currentApps = [];
       grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text2);font-size:0.8rem;padding:16px">No apps detected yet</div>';
       return;
     }
     const layout = getLayout(tvIp);
     const displayed = applyLayout(apps, layout);
     renderAppsGrid(displayed, layout);
+    currentApps = apps;
+    const layout = getLayout(tvIp);
+    const displayed = applyLayout(apps, layout);
+    renderAppsGrid(displayed);
   } catch(e) {
     showToast('Failed to load apps', 'error');
   }
@@ -453,6 +479,8 @@ function renderAppsGrid(apps, layout) {
     loadApps();
     return;
   }
+function renderAppsGrid(apps) {
+  if (!apps || !apps.length) { loadApps(); return; }
   const grid = document.getElementById('appsGrid');
   grid.innerHTML = apps.map(a => {
     const bgColor = a.color || '#333';
@@ -577,6 +605,12 @@ function restoreAllApps() {
   // Re-render all apps with clean layout
   if (currentApps.length) {
     renderAppsGrid(currentApps, { order: [], removed: [] });
+    const removeBtn = manageMode ? `<div class="remove-btn" style="display:flex" onclick="event.stopPropagation();removeApp('${a.id}')" title="Remove">×</div>` : '';
+    const dragAttrs = manageMode ? `draggable="true" ondragstart="onDragStart(event,'${a.id}')" ondragover="onDragOver(event)" ondrop="onDrop(event,'${a.id}')" ondragend="onDragEnd(event)"` : '';
+    return `<button class="app-btn" style="background:${bgColor}" onclick="send('launch',{appId:'${a.id}'})" ${dragAttrs}>${removeBtn}${iconHtml}<span>${name}</span></button>`;
+  }).join('');
+  if (manageMode) {
+    grid.querySelectorAll('.app-btn').forEach(el => el.setAttribute('draggable', 'true'));
   }
 }
 
@@ -614,6 +648,8 @@ function onDrop(e, targetId) {
   // Re-render with new order
   const displayed = applyLayout(currentApps, layout);
   renderAppsGrid(displayed, layout);
+  const displayed = applyLayout(currentApps, layout);
+  renderAppsGrid(displayed);
 }
 
 function onDragEnd(e) {
