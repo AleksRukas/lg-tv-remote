@@ -84,13 +84,16 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;max-w
 .side-btn{padding:12px 20px;background:var(--surface);border:1px solid var(--surface2);border-radius:var(--radius);color:var(--text2);font-size:0.8rem;font-weight:500;cursor:pointer;transition:all 0.15s;letter-spacing:0.02em}
 .side-btn:active{background:var(--accent);color:white;transform:scale(0.95)}
 
-/* ── App management toolbar ── */
-.app-toolbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.app-toolbar button{background:none;border:1px solid var(--text2);color:var(--text2);border-radius:6px;padding:4px 10px;font-size:0.65rem;cursor:pointer;font-family:inherit;transition:all 0.15s}
-.app-toolbar button.active{background:var(--accent);border-color:var(--accent);color:white}
-.app-toolbar button:hover{border-color:var(--accent)}
-.apps-section{padding:0 20px 20px}
-.apps-title{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text2);margin-bottom:12px}
+/* ── Profile selector ── */
+.profile-selector{position:relative;margin-bottom:8px}
+.profile-dropdown{width:100%;padding:10px 12px;background:var(--surface);border:1px solid var(--surface2);border-radius:var(--radius);color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:border-color 0.15s;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M6 8L1 3h10z' fill='%23888'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+.profile-dropdown:focus{outline:none;border-color:var(--accent)}
+.profile-dropdown option{background:var(--bg);color:var(--text)}
+.profile-actions{display:flex;gap:6px;margin-top:6px}
+.profile-actions button{flex:1;background:none;border:1px solid var(--surface2);color:var(--text2);border-radius:6px;padding:6px;font-size:0.7rem;cursor:pointer;font-family:inherit;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:4px}
+.profile-actions button:hover{border-color:var(--accent);color:var(--text)}
+.profile-actions .add-btn{color:var(--green);border-color:rgba(0,184,148,0.3)}
+.profile-actions .remove-btn-profile{color:var(--red);border-color:rgba(232,72,85,0.3)}
 /* ── App management toolbar ── */
 .app-toolbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .app-toolbar button{background:none;border:1px solid var(--text2);color:var(--text2);border-radius:6px;padding:4px 10px;font-size:0.65rem;cursor:pointer;font-family:inherit;transition:all 0.15s}
@@ -129,7 +132,17 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;max-w
   <div class="connect-logo">📺</div>
   <div class="connect-title">LG Remote</div>
   <div class="connect-sub">Control your TV from anywhere</div>
-  <div class="form-group">
+  <div class="profile-selector">
+    <select class="profile-dropdown" id="profileSelect" onchange="onProfileSelect()">
+      <option value="">Select your TV...</option>
+    </select>
+    <div class="profile-actions">
+      <button class="add-btn" onclick="addProfile()" title="Add a new TV">➕ Add TV</button>
+      <button onclick="renameProfile()" title="Rename selected TV">✏️ Rename</button>
+      <button class="remove-btn-profile" onclick="removeProfile()" title="Remove selected TV">🗑️ Remove</button>
+    </div>
+  </div>
+  <div class="form-group" id="manualIpGroup" style="display:none">
     <label class="form-label">TV IP Address</label>
     <input class="form-input" id="tvIp" type="text" inputmode="numeric" placeholder="192.168.1.xxx" value="" />
   </div>
@@ -198,9 +211,9 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;max-w
       <div class="app-section-header">
         <div class="apps-title">Installed Apps</div>
         <div class="app-toolbar">
-          <button id="manageModeBtn" onclick="toggleManageMode()">✎ Manage</button>
-          <button id="refreshAppsBtn" onclick="refreshApps()">↻ Refresh</button>
-          <button id="restoreLayoutBtn" onclick="restoreAllApps()">↺ Restore</button>
+          <button id="manageModeBtn" onclick="toggleManageMode()" title="Enable drag-and-drop reordering and remove apps">✎ Manage</button>
+          <button id="refreshAppsBtn" onclick="refreshApps()" title="Re-scan TV for apps and reset layout">↻ Refresh</button>
+          <button id="restoreLayoutBtn" onclick="restoreAllApps()" title="Show all apps, reset to default order">↺ Restore</button>
         </div>
       </div>
       <div class="apps-grid" id="appsGrid">
@@ -227,7 +240,102 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;max-w
 
 <script>
 const API = '/api';
+const PROFILE_KEY = 'lg-remote-profiles';
 let tvIp = '';
+let tvName = '';
+
+/* ── Profile management ── */
+function getProfiles() {
+  try {
+    return JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}');
+  } catch { return {}; }
+}
+
+function saveProfiles(profiles) {
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(profiles));
+}
+
+function loadProfiles() {
+  const sel = document.getElementById('profileSelect');
+  const profiles = getProfiles();
+  const entries = Object.entries(profiles).sort((a, b) => (b[1].lastConnected || 0) - (a[1].lastConnected || 0));
+  sel.innerHTML = '<option value="">Select your TV...</option>';
+  entries.forEach(([ip, p]) => {
+    const opt = document.createElement('option');
+    opt.value = ip;
+    opt.textContent = p.name || ip;
+    sel.appendChild(opt);
+  });
+  // Auto-select most recent
+  if (entries.length === 1) {
+    sel.value = entries[0][0];
+    onProfileSelect();
+  }
+}
+
+function addProfile() {
+  const ip = prompt('Enter TV IP address (e.g. 192.168.1.21)');
+  if (!ip) return;
+  const trimmed = ip.trim();
+  const profiles = getProfiles();
+  if (profiles[trimmed]) return showToast('This TV is already saved', 'error');
+  const name = prompt('Enter TV name (e.g. Living Room)', trimmed);
+  profiles[trimmed] = { name: name || trimmed, lastConnected: Date.now() };
+  saveProfiles(profiles);
+  loadProfiles();
+  showToast('TV added', 'success');
+}
+
+function renameProfile() {
+  const sel = document.getElementById('profileSelect');
+  const ip = sel.value;
+  if (!ip) return showToast('Select a TV first', 'error');
+  const profiles = getProfiles();
+  const oldName = profiles[ip].name;
+  const name = prompt('Rename TV', oldName);
+  if (!name || name === oldName) return;
+  profiles[ip].name = name;
+  saveProfiles(profiles);
+  loadProfiles();
+  sel.value = ip;
+  showToast('Renamed to ' + name, 'success');
+}
+
+function removeProfile() {
+  const sel = document.getElementById('profileSelect');
+  const ip = sel.value;
+  if (!ip) return showToast('Select a TV first', 'error');
+  const profiles = getProfiles();
+  const name = profiles[ip].name;
+  if (!confirm(`Remove "${name}" (${ip})?`)) return;
+  delete profiles[ip];
+  saveProfiles(profiles);
+  loadProfiles();
+  document.getElementById('manualIpGroup').style.display = 'none';
+  showToast('TV removed', 'success');
+}
+
+function onProfileSelect() {
+  const sel = document.getElementById('profileSelect');
+  const ip = sel.value;
+  if (ip) {
+    tvIp = ip;
+    tvName = getProfiles()[ip]?.name || ip;
+    document.getElementById('manualIpGroup').style.display = 'none';
+  } else {
+    document.getElementById('manualIpGroup').style.display = 'block';
+  }
+}
+
+function updateProfileConnection() {
+  if (tvIp) {
+    const profiles = getProfiles();
+    if (profiles[tvIp]) {
+      profiles[tvIp].lastConnected = Date.now();
+      saveProfiles(profiles);
+    }
+  }
+}
 let pollInterval = null;
 
 function showToast(msg, type='error') {
@@ -238,8 +346,27 @@ function showToast(msg, type='error') {
 }
 
 async function doConnect() {
-  tvIp = document.getElementById('tvIp').value.trim();
-  if (!tvIp) return showToast('Enter TV IP address');
+  // If a profile is selected, use its IP
+  const sel = document.getElementById('profileSelect');
+  const profileIp = sel.value;
+  if (profileIp) {
+    tvIp = profileIp;
+  } else {
+    // Manual IP entry
+    tvIp = document.getElementById('tvIp').value.trim();
+    if (!tvIp) return showToast('Enter TV IP address');
+    // Auto-add to profiles on manual entry
+    const profiles = getProfiles();
+    if (!profiles[tvIp]) {
+      const name = prompt('Save this TV for next time?', tvIp);
+      if (name !== null) {
+        profiles[tvIp] = { name: name || tvIp, lastConnected: 0 };
+        saveProfiles(profiles);
+        loadProfiles();
+        sel.value = tvIp;
+      }
+    }
+  }
 
   const btn = document.getElementById('connectBtn');
   btn.disabled = true;
@@ -261,6 +388,7 @@ async function doConnect() {
         document.getElementById('pinBox').classList.add('show');
       } else {
         // Auto-pairing succeeded — go straight to remote
+        updateProfileConnection();
         showRemote();
       }
     }
@@ -285,6 +413,7 @@ async function finishPairing() {
       if (data.connected && data.paired) {
         if (pollInterval) clearInterval(pollInterval);
         showToast('TV paired successfully!', 'success');
+        updateProfileConnection();
         showRemote();
       } else if (attempts >= maxAttempts) {
         showToast('Pairing timed out. Try again.', 'error');
@@ -542,6 +671,9 @@ function toggleMute() {
 document.querySelectorAll('.dpad-btn,.vol-btn,.side-btn,.app-btn,.input-btn,.power-btn').forEach(el => {
   el.addEventListener('touchstart', () => { try { navigator.vibrate && navigator.vibrate(10); } catch(e){} }, {passive:true});
 });
+
+// Load profiles on start
+loadProfiles();
 </script>
 </body>
 </html>
