@@ -25,8 +25,11 @@ The UI is a static React single-page app served by Nginx. All communication with
 ## Features
 
 - **Auto-pairing** — Reuses saved credentials on restart; no need to approve the TV prompt after initial pairing.
+- **TV Profiles** — Save multiple TVs with custom names. Reconnect instantly from the dropdown.
+- **App Discovery** — Lists all installed apps from the TV with icons, colors, and drag-and-drop reorder.
 - **Navigation** — D-pad, Home, Back, Enter, Menu, Guide buttons.
 - **Volume & Mute** — Up, down, and toggle mute.
+- **Air Mouse Trackpad** — Swipe on the phone screen to move the cursor on the TV. Tap to click. Full-screen overlay prevents accidental button presses.
 - **Input switching** — Launch HDMI 1–4, YouTube, Netflix, and any other installed app by ID.
 - **Power** — Turn the TV on/off (when supported by the firmware).
 - **Mobile-first UI** — Responsive dark-themed layout designed for phone screens.
@@ -73,7 +76,9 @@ The UI will be available at `http://<your-host-ip>:5203`.
 | `POST` | `/api/launch` | Launch an app — body: `{ "ip": "...", "appId": "youtube" }` |
 | `POST` | `/api/input/switch` | Switch input source — body: `{ "ip": "...", "inputId": "HDMI_1" }` |
 | `POST` | `/api/power` | Turn TV on/off — body: `{ "ip": "...", "action": "on\|off" }` |
-| `POST` | `/api/media` | Media playback controls — body: `{ "ip": "...", "action": "play\|pause\|stop" }` |
+| `POST` | `/api/media` | Media playback controls — body: `{ "ip": "...", "action": "play|pause|stop" }` |
+| `POST` | `/api/pointer/move` | Move TV cursor — body: `{ "ip": "...", "dx": 10, "dy": -5 }` (relative deltas) |
+| `POST` | `/api/pointer/click` | Send cursor click — body: `{ "ip": "..." }` |
 | `GET`  | `/api/apps/common` | List common app IDs |
 
 ### App IDs
@@ -95,6 +100,7 @@ The TV exposes its SSAP over a JSON-over-WebSocket protocol:
 - **Main WS:** `ws://<ip>:3000/` (fallback) or `wss://<ip>:3001/` (secure)
 - **Pairing:** A `register` message with a `manifest` containing desired permissions and a `pairingType: "PROMPT"` triggers the on-screen PIN prompt.
 - **Button press:** Sent via the input socket in text format: `type:button\nname:HOME\n\n`
+- **Pointer/mouse:** Sent via the pointer socket: `type:move\ndx:X\ndy:Y\ndown:0\n\n` (relative deltas, not absolute coordinates)
 - **App launch / HDMI switch:** Sent as SSAP requests on the main WebSocket: `{ "id": N, "type": "request", "uri": "ssap://system.launcher/launch", "payload": { "id": "<app-id>" } }`
 
 ## Troubleshooting

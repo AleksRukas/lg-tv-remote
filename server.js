@@ -428,6 +428,36 @@ app.post('/api/launch', (req, res) => {
   }
 });
 
+/* ── Pointer / Air Mouse Trackpad ── */
+app.post('/api/pointer/move', (req, res) => {
+  const { ip, x, y, action, dx, dy } = req.body;
+  if (!ip) return res.status(400).json({ error: 'IP required' });
+  const entry = TV_STORE[ip];
+  if (!entry || !entry.inputWs || entry.inputWs.readyState !== WebSocket.OPEN) return res.status(503).json({ error: 'No input WS' });
+  // Send relative delta move (not absolute coordinates)
+  // dx/dy from trackpad are already deltas; x/y from gyroscope need conversion
+  let moveDx = dx || 0;
+  let moveDy = dy || 0;
+  if (dx === undefined && dy === undefined && x !== undefined && y !== undefined) {
+    // Gyroscope mode: x/y are absolute, need current position to compute delta
+    // For trackpad, x/y are already deltas
+    moveDx = Math.round(x);
+    moveDy = Math.round(y);
+  }
+  const down = (action === 'drag') ? 1 : 0;
+  entry.inputWs.send(`type:move\ndx:${moveDx}\ndy:${moveDy}\ndown:${down}\n\n`);
+  res.json({ success: true, method: 'input_socket', dx: moveDx, dy: moveDy });
+});
+
+app.post('/api/pointer/click', (req, res) => {
+  const { ip } = req.body;
+  if (!ip) return res.status(400).json({ error: 'IP required' });
+  const entry = TV_STORE[ip];
+  if (!entry || !entry.inputWs || entry.inputWs.readyState !== WebSocket.OPEN) return res.status(503).json({ error: 'No input WS' });
+  entry.inputWs.send('type:click\n\n');
+  res.json({ success: true, method: 'input_socket' });
+});
+
 app.post('/api/media', (req, res) => {
   const { ip, action } = req.body;
   const m = { play:'PLAY',pause:'PAUSE',stop:'STOP',rewind:'REWIND',fastForward:'FORWARD' };
