@@ -460,9 +460,26 @@ app.post('/api/pointer/click', (req, res) => {
 
 app.post('/api/media', (req, res) => {
   const { ip, action } = req.body;
-  const m = { play:'PLAY',pause:'PAUSE',stop:'STOP',rewind:'REWIND',fastForward:'FORWARD' };
-  sendSSAP(ip, 'media.controls/' + (m[action] || action));
-  res.json({ success: true });
+  const entry = TV_STORE[ip];
+  if (!entry || !entry.mainWs || entry.mainWs.readyState !== WebSocket.OPEN) {
+    return res.status(503).json({ error: 'No WS' });
+  }
+
+  const actions = {
+    play: 'play', pause: 'pause', stop: 'stop',
+    rewind: 'rewind', fastForward: 'fastForward'
+  };
+  const mediaAction = actions[action] || action;
+  entry.commandCount++;
+  const cmdId = entry.commandCount;
+  const msg = JSON.stringify({
+    id: cmdId,
+    type: 'request',
+    uri: `ssap://media.controls/${mediaAction}`,
+    payload: {}
+  });
+  entry.mainWs.send(msg);
+  res.json({ success: true, action: mediaAction });
 });
 
 app.get('/api/apps', (req, res) => {
