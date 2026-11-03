@@ -3,6 +3,28 @@
 A lightweight, mobile-friendly web remote control for LG Smart TVs running WebOS, built with Node.js and deployed via Docker Compose.
 Tested on  2019 LG C9 with latest WebOS. Some functions might still not work. 
 
+## Table of Contents
+
+- [Architecture](#architecture)
+- [Features](#features)
+- [Getting Started](#getting-started)
+  - [1. Prerequisites](#1.-prerequisites)
+  - [2. Configuration](#2.-configuration)
+  - [3. Start](#3.-start)
+  - [4. Pairing](#4.-pairing)
+- [API Endpoints](#api-endpoints)
+  - [App IDs](#app-ids)
+- [Protocol](#protocol)
+- [Troubleshooting](#troubleshooting)
+  - ["Too many pairing requests"](#"too-many-pairing-requests")
+  - [Buttons not responding](#buttons-not-responding)
+  - [Connection drops](#connection-drops)
+- [Project Structure](#project-structure)
+- [Screenshots](#screenshots)
+  - [Front Welcome Screen](#front-welcome-screen)
+  - [Mobile Remote Control](#mobile-remote-control)
+- [License](#license)
+
 ## Architecture
 
 ```
