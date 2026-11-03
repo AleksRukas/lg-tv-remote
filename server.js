@@ -184,10 +184,50 @@ function tryOpenInputSocket(ip) {
 }
 
 /* ── Fetch installed apps ── */
+// Track pending launch point requests to avoid duplicates
+const launchPointPending = {};
+
 function fetchLaunchPoints(ip) {
   const entry = TV_STORE[ip];
   if (!entry || !entry.mainWs || entry.mainWs.readyState !== WebSocket.OPEN) return;
+  // Only fetch if not already cached
+  if (entry.launchPoints && entry.launchPoints.length > 0) return;
   sendSSAP(ip, 'com.webos.applicationManager/listLaunchPoints', {});
+}
+
+// Wait for TV response to a launchPoints request
+function waitForLaunchPoints(ip, res, timeoutMs) {
+  const entry = TV_STORE[ip];
+  const startTime = Date.now();
+
+  // If response already came in, send it immediately
+  if (entry?.launchPoints) {
+    res.json(entry.launchPoints);
+    return;
+  }
+
+  // Set a one-time listener for the response
+  const handler = (raw) => {
+    try {
+      const msg = JSON.parse(raw.toString());
+      if (msg.type === 'response' && msg.payload?.launchPoints) {
+        entry.mainWs.removeListener('message', handler);
+        entry.launchPoints = msg.payload.launchPoints;
+        res.json(normalizeApps(entry.launchPoints));
+      }
+    } catch(e) {}
+  };
+  entry.mainWs.on('message', handler);
+
+  // Timeout fallback
+  setTimeout(() => {
+    try { entry.mainWs.removeListener('message', handler); } catch(e) {}
+    if (!res.headersSent && entry?.launchPoints) {
+      res.json(entry.launchPoints);
+    } else if (!res.headersSent) {
+      res.json([]);
+    }
+  }, timeoutMs);
 }
 
 /* ── REST API ── */
@@ -482,14 +522,23 @@ app.post('/api/media', (req, res) => {
   res.json({ success: true, action: mediaAction });
 });
 
+// Normalize launch points: TV returns 'title', UI expects 'name'
+function normalizeApps(apps) {
+  return (apps || []).map(app => ({
+    ...app,
+    name: app.name || app.title || app.id,
+    color: app.color || app.bgColor || '#333'
+  }));
+}
+
 app.get('/api/apps', (req, res) => {
   const ip = req.query.ip;
   if (!ip) return res.json([]);
   const entry = TV_STORE[ip];
-  if (entry?.launchPoints) return res.json(entry.launchPoints);
-  // No cached list — try fetching it
+  if (entry?.launchPoints) return res.json(normalizeApps(entry.launchPoints));
+  // No cached list — wait for fetchLaunchPoints to complete
   if (entry?.mainWs?.readyState === WebSocket.OPEN) {
-    fetchLaunchPoints(ip);
+    return waitForLaunchPoints(ip, res, 8000);
   }
   res.json([]);
 });
@@ -501,7 +550,7 @@ app.post('/api/apps/refresh', (req, res) => {
   if (!entry?.mainWs?.readyState === WebSocket.OPEN) return res.json([]);
   fetchLaunchPoints(ip);
   setTimeout(() => {
-    const updated = entry?.launchPoints || [];
+    const updated = entry?.launchPoints ? normalizeApps(entry.launchPoints) : [];
     res.json(updated);
   }, 1500);
 });
