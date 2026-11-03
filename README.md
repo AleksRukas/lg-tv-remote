@@ -169,4 +169,4 @@ Ensure the TV's IP is static in your router's DHCP settings, or use a DNS hostna
 
 ## License
 
-MIT
+Custom License — Personal use only. See [LICENSE](LICENSE) for details. Commercial and resale rights available via contact.
