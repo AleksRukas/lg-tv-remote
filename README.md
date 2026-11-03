@@ -133,6 +133,12 @@ Ensure the TV's IP is static in your router's DHCP settings, or use a DNS hostna
 
 ## Screenshots
 
+### Front Welcome Screen
+
+![LG TV Remote — Welcome Screen](screenshot_welcome.jpg)
+
+*Initial connection screen with TV profile selector and manual IP entry.*
+
 ### Mobile Remote Control
 
 ![LG TV Remote — Mobile UI](screenshot1.jpg)
