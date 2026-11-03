@@ -131,6 +131,14 @@ Ensure the TV's IP is static in your router's DHCP settings, or use a DNS hostna
 └── data/              # Persisted client keys (Docker volume)
 ```
 
+## Screenshots
+
+### Mobile Remote Control
+
+![LG TV Remote — Mobile UI](screenshot1.jpg)
+
+*Dark-themed mobile interface with D-pad, media controls, volume, app grid, and air mouse trackpad mode.*
+
 ## License
 
 MIT
