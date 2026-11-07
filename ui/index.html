@@ -256,11 +256,19 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;max-w
 
     <!-- Text input -->
     <div id="textInputRow" class="btn-row text-input-row" style="display:none">
-      <input type="text" id="textInput" placeholder="Type text here..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text" onkeydown="if(event.key==='Enter'){event.preventDefault();sendText()}" />
-      <button onclick="sendText()" title="Send text to TV">Send</button>
-      <button onclick="sendIme('deleteCharacters',{count:1})" title="Backspace">⌫</button>
-      <button onclick="sendIme('sendEnterKey')" title="Enter">↵</button>
-      <button onclick="dismissIME()" title="Dismiss keyboard" style="background:#4a4a4a;">✕</button>
+      <input type="text" id="textInput" placeholder="Type text here..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text" onkeydown="if(event.key==='Enter'){event.preventDefault();sendText()}" style="flex:1" />
+      <button onclick="sendText()" title="Send text to TV">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </button>
+      <button onclick="sendIme('deleteCharacters',{count:1})" title="Backspace">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4H8l-5 5 5 5h13a2 2 0 002-2V6a2 2 0 00-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>
+      </button>
+      <button onclick="sendIme('sendEnterKey')" title="Enter">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 01-4 4H4"/></svg>
+      </button>
+      <button onclick="dismissIME()" title="Dismiss keyboard" style="background:#4a4a4a;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
     </div>
 
     <!-- Apps -->
@@ -292,10 +300,20 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;max-w
       <!-- IME keyboard — separate overlay above trackpad -->
       <div id="trackpadImeOverlay" style="display:none;position:fixed;bottom:0;left:0;right:0;background:rgba(15,15,20,0.97);border-top:1px solid rgba(255,255,255,0.15);z-index:1002;padding:12px 16px">
         <input type="text" id="textInputTrackpad" placeholder="Type URL..." style="clear:both;display:block;width:100%;padding:10px 14px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:0.95rem;outline:none;margin-bottom:10px;box-sizing:border-box;-webkit-appearance:none;appearance:none" />
-        <button onclick="sendText()" style="clear:both;display:block;width:100%;padding:10px 14px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:1rem;margin-bottom:10px;-webkit-appearance:none;appearance:none">Send</button>
-        <button onclick="sendIme('deleteCharacters',{count:1})" style="clear:both;display:block;width:100%;padding:12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:0.9rem;margin-bottom:10px;-webkit-appearance:none;appearance:none">⌫ Backspace</button>
-        <button onclick="sendIme('sendEnterKey')" style="clear:both;display:block;width:100%;padding:12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:0.9rem;margin-bottom:10px;-webkit-appearance:none;appearance:none">↵ Enter</button>
-        <button onclick="dismissIME()" style="clear:both;display:block;width:100%;padding:12px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:0.9rem;-webkit-appearance:none;appearance:none">✕ Dismiss</button>
+        <div style="display:flex;gap:8px">
+          <button onclick="sendText()" style="flex:1;padding:10px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;cursor:pointer;-webkit-appearance:none;appearance:none;display:flex;align-items:center;justify-content:center" title="Send text to TV">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+          <button onclick="sendIme('deleteCharacters',{count:1})" style="flex:1;padding:10px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;cursor:pointer;-webkit-appearance:none;appearance:none;display:flex;align-items:center;justify-content:center" title="Backspace">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4H8l-5 5 5 5h13a2 2 0 002-2V6a2 2 0 00-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>
+          </button>
+          <button onclick="sendIme('sendEnterKey')" style="flex:1;padding:10px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;cursor:pointer;-webkit-appearance:none;appearance:none;display:flex;align-items:center;justify-content:center" title="Enter">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 01-4 4H4"/></svg>
+          </button>
+          <button onclick="dismissIME()" style="flex:1;padding:10px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;cursor:pointer;-webkit-appearance:none;appearance:none;display:flex;align-items:center;justify-content:center" title="Dismiss keyboard">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
       </div>
     </div>
 
