@@ -91,6 +91,32 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;max-w
 .media-btn:active{background:var(--accent);color:white;transform:scale(0.95)}
 .media-btn:active *{color:white!important}
 
+/* ── Text input ── */
+.text-input-row{gap:8px;align-items:center;margin-top:8px}
+.text-input-row input{flex:1;min-width:0;padding:10px 14px;background:var(--surface);border:1px solid var(--surface2);border-radius:var(--radius);color:var(--text);font-size:0.95rem;outline:none;transition:border-color 0.15s}
+.text-input-row input:focus{border-color:var(--accent)}
+.text-input-row input::placeholder{color:var(--text2);opacity:0.6}
+.text-input-row button{padding:10px 14px;background:var(--surface);border:1px solid var(--surface2);border-radius:var(--radius);color:var(--text2);font-size:1rem;cursor:pointer;transition:all 0.15s;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+.text-input-row button:active{background:var(--accent);color:white;transform:scale(0.95)}
+
+/* ── IME keyboard indicator ── */
+.ime-indicator{display:flex;align-items:center;gap:8px;justify-content:center;padding:8px 16px;margin:0 20px 12px;background:rgba(0,186,148,0.12);border:1px solid rgba(0,186,148,0.25);border-radius:var(--radius);font-size:0.82rem;color:#00B894}
+.ime-keyboard-icon{font-size:1rem}
+.ime-label{font-weight:500}
+
+/* ── Trackpad IME row (inside trackpad overlay) ── */
+.trackpad-ime-row{position:absolute;bottom:0;left:0;right:0;padding:12px 16px;padding-bottom:calc(12px + env(safe-area-inset-bottom));background:rgba(15,15,20,0.92);border-top:1px solid rgba(255,255,255,0.15);backdrop-filter:blur(4px);z-index:1000}
+.trackpad-ime-indicator{display:flex;align-items:center;gap:8px;justify-content:center;padding:6px 0 8px;color:#00B894;font-size:0.8rem}
+.trackpad-ime-input-row{display:flex;gap:8px;align-items:center;flex-wrap:nowrap}
+.trackpad-ime-input-row input{flex:1;min-width:0;padding:10px 14px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:var(--radius);color:white;font-size:0.95rem;outline:none}
+.trackpad-ime-input-row input:focus{border-color:var(--accent)}
+.trackpad-ime-input-row input::placeholder{color:rgba(255,255,255,0.4);opacity:1}
+.trackpad-ime-input-row button{padding:10px 14px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:var(--radius);color:white;font-size:1rem;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.trackpad-ime-input-row button:active{background:var(--accent);border-color:var(--accent)}
+.trackpad-ime-buttons{display:flex;gap:8px;margin-top:10px}
+.trackpad-ime-buttons button{flex:1;padding:12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:var(--radius);color:white;font-size:0.9rem;cursor:pointer;text-align:center;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+.trackpad-ime-buttons button:active{background:var(--accent);border-color:var(--accent)}
+
 /* ── Profile selector ── */
 .profile-selector{position:relative;margin-bottom:8px}
 .profile-dropdown{width:100%;padding:10px 12px;background:var(--surface);border:1px solid var(--surface2);border-radius:var(--radius);color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:border-color 0.15s;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M6 8L1 3h10z' fill='%23888'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
@@ -222,6 +248,21 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;max-w
       <div class="side-btn" style="background:#6C5CE7;border-color:#6C5CE7;color:white" onclick="send('button',{action:'Blue'})">Blue</div>
     </div>
 
+    <!-- IME Keyboard indicator -->
+    <div id="imeIndicator" class="ime-indicator" style="display:none">
+      <span class="ime-keyboard-icon">⌨</span>
+      <span class="ime-label">Keyboard active — type below</span>
+    </div>
+
+    <!-- Text input -->
+    <div id="textInputRow" class="btn-row text-input-row" style="display:none">
+      <input type="text" id="textInput" placeholder="Type text here..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text" onkeydown="if(event.key==='Enter'){event.preventDefault();sendText()}" />
+      <button onclick="sendText()" title="Send text to TV">Send</button>
+      <button onclick="sendIme('deleteCharacters',{count:1})" title="Backspace">⌫</button>
+      <button onclick="sendIme('sendEnterKey')" title="Enter">↵</button>
+      <button onclick="dismissIME()" title="Dismiss keyboard" style="background:#4a4a4a;">✕</button>
+    </div>
+
     <!-- Apps -->
     <div class="apps-section">
       <div class="app-section-header">
@@ -245,7 +286,17 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;max-w
       <div style="position:absolute;top:12px;right:12px">
         <button id="trackpadExitBtn" onclick="toggleAirMouse()" style="background:rgba(0,0,0,0.7);color:white;border:2px solid rgba(255,255,255,0.3);border-radius:50%;width:44px;height:44px;font-size:1.2rem;display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit">✕</button>
       </div>
-      <div style="position:absolute;bottom:16px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.5);font-size:0.75rem;text-align:center">Swipe to move cursor · Tap to click</div>
+
+      <div id="trackpadHint" style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.5);font-size:0.75rem;text-align:center;pointer-events:none;z-index:1001">Swipe to move cursor · Tap to click</div>
+
+      <!-- IME keyboard — separate overlay above trackpad -->
+      <div id="trackpadImeOverlay" style="display:none;position:fixed;bottom:0;left:0;right:0;background:rgba(15,15,20,0.97);border-top:1px solid rgba(255,255,255,0.15);z-index:1002;padding:12px 16px">
+        <input type="text" id="textInputTrackpad" placeholder="Type URL..." style="clear:both;display:block;width:100%;padding:10px 14px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:0.95rem;outline:none;margin-bottom:10px;box-sizing:border-box;-webkit-appearance:none;appearance:none" />
+        <button onclick="sendText()" style="clear:both;display:block;width:100%;padding:10px 14px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:1rem;margin-bottom:10px;-webkit-appearance:none;appearance:none">Send</button>
+        <button onclick="sendIme('deleteCharacters',{count:1})" style="clear:both;display:block;width:100%;padding:12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:0.9rem;margin-bottom:10px;-webkit-appearance:none;appearance:none">⌫ Backspace</button>
+        <button onclick="sendIme('sendEnterKey')" style="clear:both;display:block;width:100%;padding:12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:0.9rem;margin-bottom:10px;-webkit-appearance:none;appearance:none">↵ Enter</button>
+        <button onclick="dismissIME()" style="clear:both;display:block;width:100%;padding:12px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:0.9rem;-webkit-appearance:none;appearance:none">✕ Dismiss</button>
+      </div>
     </div>
 
     <!-- Inputs -->
@@ -451,16 +502,18 @@ async function finishPairing() {
   pollInterval = setInterval(check, 500);
 }
 
-function showRemote() {
+async function showRemote() {
   document.getElementById('connectScreen').classList.remove('active');
   document.getElementById('remoteScreen').classList.add('active');
   updateStatus(true);
   loadApps();
   setupTrackpad();
+  startIMEPolling();
 }
 
 function disconnect() {
   if (pollInterval) clearInterval(pollInterval);
+  stopIMEPolling();
   fetch(`${API}/disconnect`, {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
@@ -485,6 +538,108 @@ async function send(endpoint, payload) {
     });
   } catch (e) {
     showToast('Send failed', 'error');
+  }
+}
+
+async function sendIme(action, payload = {}) {
+  try {
+    const res = await fetch(`${API}/ime`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ ip: tvIp, action, ...payload })
+    });
+    const data = await res.json();
+    if (!data.ok) showToast('IME send failed', 'error');
+  } catch (e) {
+    showToast('IME send failed', 'error');
+  }
+}
+
+// Dismiss IME keyboard / hide text input
+function dismissIME() {
+  imeInputFocused = false;
+  const tpRow = document.getElementById('trackpadImeOverlay');
+  if (tpRow) tpRow.style.display = 'none';
+  const indicator = document.getElementById('imeIndicator');
+  if (indicator) indicator.style.display = 'none';
+  const row = document.getElementById('textInputRow');
+  if (row) row.style.display = 'none';
+  const tpInput = document.getElementById('textInputTrackpad');
+  if (tpInput) { try { tpInput.blur(); } catch(e) {} };
+  const input = document.getElementById('textInput');
+  if (input) { try { input.blur(); } catch(e) {} };
+}
+
+async function sendText() {
+  const input = airMouseActive
+    ? document.getElementById('textInputTrackpad')
+    : document.getElementById('textInput');
+  const text = input.value.trim();
+  if (!text) return;
+  await sendIme('insertText', { text, replace: false });
+  input.value = '';
+}
+
+/* ── IME status polling ── */
+let imePollInterval = null;
+
+function startIMEPolling() {
+  if (imePollInterval) clearInterval(imePollInterval);
+  imePollInterval = setInterval(checkIMEStatus, 2000);
+  checkIMEStatus();
+}
+
+function stopIMEPolling() {
+  if (imePollInterval) {
+    clearInterval(imePollInterval);
+    imePollInterval = null;
+  }
+}
+
+async function checkIMEStatus() {
+  try {
+    const res = await fetch(`${API}/ime/status?ip=${tvIp}`);
+    const data = await res.json();
+    console.log(`[IME] status check: focused=${data.focused} contentType=${data.contentType}`);
+    if (data.focused && !imeInputFocused) {
+      imeInputFocused = true;
+      // Trackpad overlay IME row
+      const tpRow = document.getElementById('trackpadImeOverlay');
+      if (tpRow) tpRow.style.display = 'flex';
+      // Normal (non-trackpad) IME row
+      const indicator = document.getElementById('imeIndicator');
+      const row = document.getElementById('textInputRow');
+      if (indicator) indicator.style.display = 'flex';
+      if (row) row.style.display = 'flex';
+      // Focus the trackpad input if trackpad is active, otherwise normal input
+      if (airMouseActive) {
+        const tpInput = document.getElementById('textInputTrackpad');
+        if (tpInput) {
+          tpInput.placeholder = data.contentType === 'url' ? 'Type URL...' : data.contentType === 'number' ? 'Type numbers...' : 'Type text...';
+          setTimeout(() => { try { tpInput.focus(); } catch(e) {} }, 100);
+        }
+      } else {
+        const input = document.getElementById('textInput');
+        if (input) {
+          input.placeholder = data.contentType === 'url' ? 'Type URL...' : data.contentType === 'number' ? 'Type numbers...' : 'Type text...';
+          setTimeout(() => { try { input.focus(); } catch(e) {} }, 100);
+        }
+      }
+    } else if (!data.focused && imeInputFocused) {
+      imeInputFocused = false;
+      const tpRow = document.getElementById('trackpadImeOverlay');
+      if (tpRow) tpRow.style.display = 'none';
+      const indicator = document.getElementById('imeIndicator');
+      const row = document.getElementById('textInputRow');
+      if (indicator) indicator.style.display = 'none';
+      if (row) row.style.display = 'none';
+      const input = document.getElementById('textInput');
+      if (input) { try { input.blur(); } catch(e) {} };
+      const tpInput = document.getElementById('textInputTrackpad');
+      if (tpInput) { try { tpInput.blur(); } catch(e) {} };
+    }
+  } catch(e) {
+    console.log(`[IME] check error: ${e.message}`);
   }
 }
 
@@ -683,6 +838,7 @@ function onDragEnd(e) {
 
 /* ── Air Mouse Trackpad ── */
 let airMouseActive = false;
+let imeInputFocused = false;
 let cursorX = 0, cursorY = 0;
 let cursorEl = null;
 let lastPointerMove = 0;
@@ -703,6 +859,11 @@ function toggleAirMouse() {
   const btn = document.getElementById('airMouseBtn');
   btn.classList.toggle('active', airMouseActive);
   btn.textContent = airMouseActive ? '📱 Trackpad ON' : '📱 Trackpad';
+
+  // When re-enabling trackpad, dismiss IME
+  if (airMouseActive) {
+    dismissIME();
+  }
 
   createCursor();
 

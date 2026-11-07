@@ -53,6 +53,21 @@ function sendSSAP(ip, uri, payload = {}) {
   return true;
 }
 
+/* ── Send subscription on main WS ── */
+function sendSubscribe(ip, uri, payload = {}) {
+  const entry = TV_STORE[ip];
+  if (!entry || !entry.mainWs || entry.mainWs.readyState !== WebSocket.OPEN) return false;
+  entry.commandCount++;
+  const msg = JSON.stringify({
+    id: entry.commandCount,
+    type: 'subscribe',
+    uri: uri.startsWith('ssap://') ? uri : `ssap://${uri}`,
+    payload
+  });
+  entry.mainWs.send(msg);
+  return true;
+}
+
 /* ── Send button via input WS (text format) ── */
 function sendButtonRaw(ip, name) {
   const entry = TV_STORE[ip];
@@ -118,11 +133,12 @@ function attachEvents(ip) {
         } catch(e) {
           console.log(`[TV ${ip}] Could not save key: ${e.message}`);
         }
-        // Try to open input socket and fetch app list after pairing
+        // Try to open input socket, fetch app list, and register IME keyboard after pairing
         if (!entry.socketRequested) {
           entry.socketRequested = true;
           setTimeout(() => tryOpenInputSocket(ip), 1000);
           setTimeout(() => fetchLaunchPoints(ip), 3000);
+          setTimeout(() => registerIMEKeyboard(ip), 4000);
         }
       }
 
@@ -166,6 +182,24 @@ function attachEvents(ip) {
         console.log(`[TV ${ip}] ✓ Found ${apps.length} apps (${withIcons} with icons)`);
       }
 
+      // Handle IME keyboard focus events
+      if (msg.type === 'response' && msg.payload?.subscribed && msg.payload?.currentWidget) {
+        const widget = msg.payload.currentWidget;
+        entry.imeFocused = widget.focus || false;
+        entry.imeContentType = widget.contentType || 'text';
+        entry.imeCursorPos = widget.cursorPosition || 0;
+        console.log(`[TV ${ip}] IME initial focus=${entry.imeFocused} type=${entry.imeContentType} cursor=${entry.imeCursorPos}`);
+      }
+
+      // Handle IME push events (focus changes after subscription)
+      if (msg.type === 'response' && msg.payload?.focusChanged && msg.payload?.currentWidget) {
+        const widget = msg.payload.currentWidget;
+        entry.imeFocused = widget.focus || false;
+        entry.imeContentType = widget.contentType || 'text';
+        entry.imeCursorPos = widget.cursorPosition || 0;
+        console.log(`[TV ${ip}] IME focus changed → focus=${entry.imeFocused} type=${entry.imeContentType} cursor=${entry.imeCursorPos}`);
+      }
+
       if (msg.type === 'error') {
         // Ignore 404 errors for services not supported on C9
         const code = msg.error || '';
@@ -181,6 +215,14 @@ function tryOpenInputSocket(ip) {
   const entry = TV_STORE[ip];
   if (!entry || !entry.mainWs || entry.mainWs.readyState !== WebSocket.OPEN) return;
   sendSSAP(ip, 'com.webos.service.networkinput/getPointerInputSocket', {});
+}
+
+/* ── Register IME keyboard subscription ── */
+function registerIMEKeyboard(ip) {
+  const entry = TV_STORE[ip];
+  if (!entry || !entry.mainWs || entry.mainWs.readyState !== WebSocket.OPEN) return;
+  sendSubscribe(ip, 'com.webos.service.ime/registerRemoteKeyboard', { subscribe: true });
+  console.log(`[TV ${ip}] Sent IME registerRemoteKeyboard subscription`);
 }
 
 /* ── Fetch installed apps ── */
@@ -556,6 +598,46 @@ app.post('/api/apps/refresh', (req, res) => {
 });
 
 app.get('/api/apps/common', (req, res) => res.json([]));
+
+// ── IME (Input Method Editor) text injection ──
+app.post('/api/ime', (req, res) => {
+  const ip = req.body?.ip;
+  const action = req.body?.action;
+  if (!ip || !action) return res.json({ ok: false });
+  const entry = TV_STORE[ip];
+  if (!entry || !entry.mainWs || entry.mainWs.readyState !== WebSocket.OPEN) {
+    return res.json({ ok: false, error: 'no connection' });
+  }
+  if (action === 'insertText') {
+    const text = req.body?.text || '';
+    const replace = !!req.body?.replace;
+    sendSSAP(ip, 'com.webos.service.ime/insertText', { text, replace });
+    res.json({ ok: true, method: 'ime' });
+  } else if (action === 'deleteCharacters') {
+    const count = req.body?.count || 1;
+    sendSSAP(ip, 'com.webos.service.ime/deleteCharacters', { count });
+    res.json({ ok: true, method: 'ime' });
+  } else if (action === 'sendEnterKey') {
+    sendSSAP(ip, 'com.webos.service.ime/sendEnterKey', {});
+    res.json({ ok: true, method: 'ime' });
+  } else {
+    res.json({ ok: false, error: 'unknown action' });
+  }
+});
+
+// ── IME status ──
+app.get('/api/ime/status', (req, res) => {
+  const ip = req.query.ip;
+  if (!ip) return res.json({});
+  const entry = TV_STORE[ip];
+  if (!entry) return res.json({});
+  res.json({
+    focused: entry.imeFocused || false,
+    contentType: entry.imeContentType || null,
+    cursorPosition: entry.imeCursorPos || 0,
+    hasInputWs: !!(entry.inputWs && entry.inputWs.readyState === WebSocket.OPEN)
+  });
+});
 
 const PORT = 3000;
 app.listen(PORT, '0.0.0.0', () => console.log(`LG WebOS Remote API on port ${PORT}`));
